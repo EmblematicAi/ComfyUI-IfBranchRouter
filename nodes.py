@@ -7,7 +7,6 @@ except Exception:
         def __init__(self, message=None):
             self.message = message
 
-
 MAX_BRANCHES = 32
 
 
@@ -19,7 +18,6 @@ def _parse_conditions(raw):
         text = raw.strip()
         if not text:
             return []
-
         try:
             data = json.loads(text)
         except json.JSONDecodeError:
@@ -81,18 +79,29 @@ def _matches(condition, expected, compare_as, trim, case_sensitive):
         return left_ok and right_ok and left == right
 
     if mode == "STRING":
-        return _as_string(condition, trim, case_sensitive) == _as_string(
-            expected, trim, case_sensitive
-        )
+        return _as_string(condition, trim, case_sensitive) == _as_string(expected, trim, case_sensitive)
 
     left, left_ok = _as_int(condition)
     right, right_ok = _as_int(expected)
     if left_ok and right_ok:
         return left == right
 
-    return _as_string(condition, trim, case_sensitive) == _as_string(
-        expected, trim, case_sensitive
-    )
+    return _as_string(condition, trim, case_sensitive) == _as_string(expected, trim, case_sensitive)
+
+
+def _select_index(condition, compare_as, conditions_json, string_trim, case_sensitive):
+    conditions = _parse_conditions(conditions_json)
+    for index, expected in enumerate(conditions):
+        if _matches(condition, expected, compare_as, string_trim, case_sensitive):
+            return index
+    return len(conditions)
+
+
+def _to_index(value):
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return 0
 
 
 class IfBranchRouter:
@@ -142,13 +151,13 @@ class IfBranchRouter:
                     },
                 ),
             },
-           "optional": {
+            "optional": {
                 **{
                     f"passthrough_{index + 1}": (
                         "*",
                         {
                             "forceInput": True,
-                            "tooltip": f"Value routed to output if_{index + 1} when that branch is selected. If omitted, the condition value is output.",
+                            "tooltip": f"Value routed to if_{index + 1} when that branch is selected. If omitted, the condition value is output.",
                         },
                     )
                     for index in range(MAX_BRANCHES)
@@ -157,7 +166,7 @@ class IfBranchRouter:
                     "*",
                     {
                         "forceInput": True,
-                        "tooltip": "Value routed to the otherwise output when no branch matches. If omitted, the condition value is output.",
+                        "tooltip": "Value routed to otherwise when no branch matches. If omitted, the condition value is output.",
                     },
                 ),
             },
@@ -167,37 +176,87 @@ class IfBranchRouter:
     def VALIDATE_INPUTS(cls, input_types):
         return True
 
-    def route(
-    self,
-    condition,
-    compare_as="AUTO",
-    conditions_json='["0", "1"]',
-    string_trim=False,
-    case_sensitive=True,
-    **kwargs,
+    def check_lazy_status(
+        self,
+        condition,
+        compare_as="AUTO",
+        conditions_json='["0", "1"]',
+        string_trim=False,
+        case_sensitive=True,
+        **kwargs,
     ):
-        conditions = _parse_conditions(conditions_json)
-        selected = len(conditions)
-    
-        for index, expected in enumerate(conditions):
-            if _matches(condition, expected, compare_as, string_trim, case_sensitive):
-                selected = index
-                break
-    
+        selected = _select_index(condition, compare_as, conditions_json, string_trim, case_sensitive)
+        name = f"passthrough_{selected + 1}" if selected < MAX_BRANCHES else "passthrough_otherwise"
+        return [name] if kwargs.get(name) is None else []
+
+    def route(
+        self,
+        condition,
+        compare_as="AUTO",
+        conditions_json='["0", "1"]',
+        string_trim=False,
+        case_sensitive=True,
+        **kwargs,
+    ):
+        selected = _select_index(condition, compare_as, conditions_json, string_trim, case_sensitive)
         key = f"passthrough_{selected + 1}" if selected < MAX_BRANCHES else "passthrough_otherwise"
         payload = kwargs.get(key)
         if payload is None:
             payload = condition
-    
+
         outputs = [ExecutionBlocker(None) for _ in range(MAX_BRANCHES + 1)]
         outputs[selected] = payload
         return tuple(outputs)
 
 
+class IfBranchSelector:
+    CATEGORY = "logic/branch"
+    FUNCTION = "select"
+    RETURN_TYPES = ("*",)
+    RETURN_NAMES = ("output",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "condition": (
+                    "INT,STRING",
+                    {"forceInput": True, "tooltip": "1-based number of the passthrough to send to the output."},
+                ),
+            },
+            "optional": {
+                **{
+                    f"passthrough_{index + 1}": (
+                        "*",
+                        {
+                            "forceInput": True,
+                            "lazy": True,
+                            "tooltip": f"Sent to the output when condition is {index + 1}. Falls back to the condition value if unconnected.",
+                        },
+                    )
+                    for index in range(MAX_BRANCHES)
+                },
+            },
+        }
+
+    def check_lazy_status(self, condition, **kwargs):
+        index = _to_index(condition)
+        name = f"passthrough_{index}"
+        return [name] if 1 <= index <= MAX_BRANCHES and kwargs.get(name) is None else []
+
+    def select(self, condition, **kwargs):
+        index = _to_index(condition)
+        payload = kwargs.get(f"passthrough_{index}") if 1 <= index <= MAX_BRANCHES else None
+        return (condition if payload is None else payload,)
+
+
 NODE_CLASS_MAPPINGS = {
     "IfBranchRouter": IfBranchRouter,
+    "IfBranchSelector": IfBranchSelector,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "IfBranchRouter": "If Branch Router",
+    "IfBranchSelector": "If Branch Selector",
 }
+
