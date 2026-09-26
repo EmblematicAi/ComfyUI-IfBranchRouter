@@ -142,14 +142,24 @@ class IfBranchRouter:
                     },
                 ),
             },
-            "optional": {
-                "passthrough": (
+           "optional": {
+                **{
+                    f"passthrough_{index + 1}": (
+                        "*",
+                        {
+                            "forceInput": True,
+                            "tooltip": f"Value routed to output if_{index + 1} when that branch is selected. If omitted, the condition value is output.",
+                        },
+                    )
+                    for index in range(MAX_BRANCHES)
+                },
+                "passthrough_otherwise": (
                     "*",
                     {
                         "forceInput": True,
-                        "tooltip": "Optional value to pass through the selected branch. If omitted, the condition value is output.",
+                        "tooltip": "Value routed to the otherwise output when no branch matches. If omitted, the condition value is output.",
                     },
-                )
+                ),
             },
         }
 
@@ -158,23 +168,27 @@ class IfBranchRouter:
         return True
 
     def route(
-        self,
-        condition,
-        compare_as="AUTO",
-        conditions_json='["0", "1"]',
-        string_trim=False,
-        case_sensitive=True,
-        passthrough=None,
+    self,
+    condition,
+    compare_as="AUTO",
+    conditions_json='["0", "1"]',
+    string_trim=False,
+    case_sensitive=True,
+    **kwargs,
     ):
         conditions = _parse_conditions(conditions_json)
         selected = len(conditions)
-
+    
         for index, expected in enumerate(conditions):
             if _matches(condition, expected, compare_as, string_trim, case_sensitive):
                 selected = index
                 break
-
-        payload = condition if passthrough is None else passthrough
+    
+        key = f"passthrough_{selected + 1}" if selected < MAX_BRANCHES else "passthrough_otherwise"
+        payload = kwargs.get(key)
+        if payload is None:
+            payload = condition
+    
         outputs = [ExecutionBlocker(None) for _ in range(MAX_BRANCHES + 1)]
         outputs[selected] = payload
         return tuple(outputs)
