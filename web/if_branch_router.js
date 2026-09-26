@@ -199,3 +199,73 @@ app.registerExtension({
         };
     },
 });
+
+// === IfBranchSelector: manual input count ===
+const SELECTOR_NODE = "IfBranchSelector";
+const SELECTOR_MAX = 32;
+const SELECTOR_DEFAULT = 8;
+
+function passthroughSlots(node) {
+    return (node.inputs || []).filter((i) => i.name?.startsWith("passthrough_"));
+}
+
+function setSelectorInputCount(node, count) {
+    const widget = node.widgets?.find((w) => w.name === "input_count");
+    count = Math.max(1, Math.min(SELECTOR_MAX, Math.round(Number(count) || SELECTOR_DEFAULT)));
+    if (widget) widget.value = count;
+    (node.properties ??= {}).selector_input_count = count;
+
+    while (passthroughSlots(node).length > count) {
+        const slot = node.inputs.length - 1;
+        const link = node.inputs[slot].link;
+        for (const id of Array.isArray(link) ? link : link != null ? [link] : []) {
+            node.graph?.removeLink(id);
+        }
+        node.removeInput(slot);
+    }
+
+    while (passthroughSlots(node).length < count) {
+        node.addInput(`passthrough_${passthroughSlots(node).length + 1}`, "*");
+    }
+
+    node.setSize(node.computeSize());
+    node.setDirtyCanvas(true, true);
+}
+
+function setupSelector(node) {
+    if (node.widgets?.some((w) => w.name === "input_count")) {
+        setSelectorInputCount(node, node.widgets.find((w) => w.name === "input_count").value);
+        return;
+    }
+
+    const saved = node.properties?.selector_input_count ?? SELECTOR_DEFAULT;
+    const countWidget = node.addWidget("number", "input_count", saved, () => {}, {
+        min: 1,
+        max: SELECTOR_MAX,
+        step: 1,
+        precision: 0,
+    });
+    countWidget.value = saved;
+    node.addWidget("button", "Set Inputs", null, () => setSelectorInputCount(node, countWidget.value));
+
+    setSelectorInputCount(node, countWidget.value);
+}
+
+app.registerExtension({
+    name: "comfy.if_branch_selector",
+    beforeRegisterNodeDef(nodeType, nodeData) {
+        if (nodeData.name !== SELECTOR_NODE) return;
+        const onCreated = nodeType.prototype.onNodeCreated;
+        nodeType.prototype.onNodeCreated = function () {
+            const result = onCreated?.apply(this, arguments);
+            setupSelector(this);
+            return result;
+        };
+        const onConfigure = nodeType.prototype.onConfigure;
+        nodeType.prototype.onConfigure = function () {
+            const result = onConfigure?.apply(this, arguments);
+            requestAnimationFrame(() => setupSelector(this));
+            return result;
+        };
+    },
+});
