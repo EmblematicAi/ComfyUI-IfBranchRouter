@@ -1,7 +1,7 @@
 # ComfyUI If Branch Router - Matching Passthrough and Output Fork
 This fork allows passthroughs to match the outputs. The original node had 32 outputs but you would pass the same passthrough on all conditions. This fork allows you to send different output depending on the input. For instance this would allow you use five different text boxes and send only the third one to the clip encoder (previous version would only allow to use one text box, but you could have sent that one text box to the clip encoder or a savetext node). Though it uses "if" truthfully this node is more like a case statement. If i == 1 If i == 2  is really the same as Case i=1: Care i=2:. As far as I can see those node can't do something like "If i > 2 <= 6". 
 
-Original description below (untraslated):
+Original description below (untranslated):
 
 一个用于 ComfyUI 的条件分支节点：输入一个 `condition`，按多个 `if == value` 条件选择输出路径；所有条件都不匹配时，走最后的 `否则` 输出口。
 
