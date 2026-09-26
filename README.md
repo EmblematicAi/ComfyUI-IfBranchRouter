@@ -2,7 +2,9 @@
 This fork does two things. For the Router node it allows passthroughs to match the outputs. It also adds a selector node, so that you can place many inputs with a single output based on the int passed to the node. This fork allows you to send different output depending on the input. You will want to use the modified Router node if you intend to send a single consistent output to another node. You will use the Selector node if you have one destination and you want to send many potential outputs to it.
 Though it uses "if" truthfully this node is more like a case statement. If i == 1 If i == 2  is really the same as Case i=1: Care i=2:. As far as I can see those node can't do something like "If i > 2 <= 6". 
 Comfy Random Nodes' Random Int node is what I use to drive this.
+
 https://github.com/Mistralys/comfyui-random-nodes
+
 Original description below (untranslated):
 
 一个用于 ComfyUI 的条件分支节点：输入一个 `condition`，按多个 `if == value` 条件选择输出路径；所有条件都不匹配时，走最后的 `否则` 输出口。
