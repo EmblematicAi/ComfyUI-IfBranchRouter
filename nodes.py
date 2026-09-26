@@ -242,7 +242,7 @@ class IfBranchSelector:
     def check_lazy_status(self, condition, **kwargs):
         index = _to_index(condition)
         name = f"passthrough_{index}"
-        return [name] if 1 <= index <= MAX_BRANCHES and kwargs.get(name) is None else []
+        return [name] if 1 <= index <= MAX_BRANCHES and name in kwargs else []
 
     def select(self, condition, **kwargs):
         index = _to_index(condition)
