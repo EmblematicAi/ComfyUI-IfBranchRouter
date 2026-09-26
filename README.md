@@ -1,5 +1,6 @@
 # ComfyUI If Branch Router - Matching Passthrough and Output Fork
-This fork allows passthroughs to match the outputs. The original node had 32 outputs but you would pass the same passthrough on all conditions. This fork allows you to send different output depending on the input. For instance this would allow you use five different text boxes and send only the third one to the clip encoder (previous version would only allow to use one text box, but you could have sent that one text box to the clip encoder or a savetext node). Though it uses "if" truthfully this node is more like a case statement. If i == 1 If i == 2  is really the same as Case i=1: Care i=2:. As far as I can see those node can't do something like "If i > 2 <= 6". 
+This fork does two things. For the Router node it allows passthroughs to match the outputs. It also adds a selector node, so that you can place many inputs with a single output based on the int passed to the node. This fork allows you to send different output depending on the input. You will want to use the modified Router node if you intend to send a single consistent output to another node. You will use the Selector node if you have one destination and you want to send many potential outputs to it.
+Though it uses "if" truthfully this node is more like a case statement. If i == 1 If i == 2  is really the same as Case i=1: Care i=2:. As far as I can see those node can't do something like "If i > 2 <= 6". 
 
 Original description below (untranslated):
 
